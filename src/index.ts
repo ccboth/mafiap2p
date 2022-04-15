@@ -1,4 +1,3 @@
-import { createPeerConnection } from "p2p-chat";
+async function main() {}
 
-
-alert("пошел нахуй");
+main();
