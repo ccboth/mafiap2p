@@ -1,13 +1,25 @@
+import Peer from "./Peer";
 
-class Host {
-	private _peerConnection: RTCPeerConnection;
-	/**
-	 *
-	 * @param roomId unque room identifier
-	 */
-	constructor(roomId: string) {
-		this._peerConnection = new RTCPeerConnection({ iceServers: iceServers });
+export default class Host extends Peer {
+
+	private async createOffer() {
+		this._channel = this._peerConnection.createDataChannel("dasasg");
+		this._channel.onmessage = (ev) => console.log(ev.data);
+		const promiseLocalDescription = new Promise<RTCSessionDescription>(this.cecandidator);
+		const offer = await this._peerConnection.createOffer();
+		await this._peerConnection.setLocalDescription(offer);
+		return (await promiseLocalDescription);
 	}
 
-	public async init() {}
+	/**
+	 * Create room. 
+	 */
+	 public async createRoom() {
+		this._localDescription = await this.createOffer();
+	}
+
+	public acceptPeer(remoteDescription: RTCSessionDescriptionInit) {
+		return this._peerConnection.setRemoteDescription(remoteDescription);
+	}
+	
 }
