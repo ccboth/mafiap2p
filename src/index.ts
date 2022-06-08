@@ -1,63 +1,58 @@
-import Host from "./host";
-import Sub from "./sub";
-import Peer from "./Peer";
-
-interface Room {
-  offer: RTCSessionDescriptionInit;
-};
+// import Host from "./host";
+// import Sub from "./sub";
+import Peer from "./peer";
+// import Connection from "./connection";
 
 
-const iceServers = [
+
+const iceServers: RTCIceServer[] = [
 	{
 		urls: "stun:stun.l.google.com:19302",
 	},
+  // {
+  //   urls: 'turn:numb.viagenie.ca',
+  //   credential: 'muazkh',
+  //   username: 'webrtc@live.com'
+  // },
   {
-    urls: 'turn:numb.viagenie.ca',
-    credential: 'muazkh',
-    username: 'webrtc@live.com'
-  },
-];
-let peer: Peer;
-
-/**
- * @description Выполняет настройку хоста
- */
-async function host() {
-  const host = new Host(iceServers);
-  await host.createRoom();
-  console.log(JSON.stringify(host.localDescription));
-  
-  peer = host;
-  
-  document.getElementById("newPeer").onclick = () => {
-    const aceptedSDP = prompt("Enter accepted sdp");
-    host.acceptPeer(JSON.parse(aceptedSDP));
+    urls: "turn:192.168.0.12:6545",
+    username: "Pass",
+    credential: "pass"
   }
-}
+];
 
-/**
- * @description Выполняет настройку пира
- */
-async function sub() {
-  const remoteDescr = prompt("Enter offer(sdp):");
-  const sub = new Sub(iceServers);
-  await sub.connect(JSON.parse(remoteDescr));
-  console.log(JSON.stringify(sub.localDescription));
-  peer = sub;
-}
-
-async function sendMesssage() {
-  const text = prompt("Enter you message:", "Hello!!");
-  peer.sendMessage(text);
-}
+const myPeer = new Peer(prompt("What is your name"),iceServers);
 
 window.onload = main;
 
+
 async function main() {
 
-  document.getElementById("sendMessage").onclick = sendMesssage;
-  const isHost = confirm("You host?");
-  if (isHost) await host();
-  else await sub()
+  document.getElementById("create").onclick = async () => {
+    console.log("steadsaf");
+    
+    console.log(JSON.stringify((await myPeer.openNewRoom())));
+    const answer = prompt();
+    await myPeer.acceptRoom(JSON.parse(answer));
+  }
+
+  document.getElementById("connect").onclick = async () => {
+    const offer = prompt("enter offer");
+    const answer = (await myPeer.connectToRoom(JSON.parse(offer)));
+    console.log(JSON.stringify(answer));
+  }
+
+  document.getElementById("send").onclick = () => {
+    const message = prompt("Enter message");
+    myPeer.sendMessageAll(message);
+  }
+
+  myPeer.addListenerDefaultMessageType("message", message => {
+    console.log("__________________________________________");
+    console.log(message.senderName);
+    console.log(message.data);
+    console.log("------------------------------------------");
+  })
+  
 }
 

@@ -1,6 +1,7 @@
-import Peer from "./Peer";
+import Connection from "./connection";
 
-export default class Host extends Peer {
+
+export default class Host extends Connection {
 
 	private async createOffer() {
 		this._channel = this._peerConnection.createDataChannel("dasasg");

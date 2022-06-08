@@ -1,16 +1,10 @@
-import Peer from "./Peer";
+import Connection from "./connection";
 
-export default class Sub extends Peer {
+export default class Sub extends Connection {
 
-  public async connect (remoteDescription: RTCSessionDescriptionInit) {
-    console.log(123);
-    
-    await this._peerConnection.setRemoteDescription(remoteDescription);
-    console.log(321);
-    
+  public async connect (remoteDescription: RTCSessionDescriptionInit) {   
+    await this._peerConnection.setRemoteDescription(remoteDescription);  
     this._localDescription = await this.createAnswer();
-    console.log(1234);
-    
   }
 
   private async createAnswer() {
