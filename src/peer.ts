@@ -2,11 +2,10 @@ import ts = require("typescript");
 import Connection from "./connection";
 import Host from "./host";
 import Sub from "./sub";
-"use"
 
-type DefaultMessageTypes = "newConnection" | "disconnect" | "message" | "validatePeerName" | "acceptPeerName";
+type DefaultMessageTypes = "newConnection" | "introduceOffer" | "introduceAnswer" | "disconnect" | "message" | "validatePeerName" | "acceptPeerName";
 
-interface newConnection {
+interface NewConnection {
   newConnectName: string;
   knowledgeable:  string[];
 }
@@ -14,7 +13,9 @@ interface newConnection {
 interface Message {
   senderName: string;
 	type: string;
-	data: string | newConnection;
+	data: string | NewConnection;
+  newComer?:string;
+  lead?:string;
 }
 
 export default class Peer {
@@ -24,14 +25,15 @@ export default class Peer {
   private _messageListeners: ts.ESMap<string, (message: Message)=> void>;
   private _handlingTypes: string[];
   private _lastRoom: Host;
+  private _connectStatus: boolean;
 
   constructor (private _peerName: string, private _iceServers: RTCIceServer[]) {
-    // this._iceServers = iceServers;
     this._lastRoom = null;
     this._connections = [];
     this._messageListeners = new Map<string, (message: Message)=> void>();
     this._handlingTypes = [];
     console.log(this._handlingTypes);
+    this._connectStatus = false;
   }
 
   private _mainMessageHandler = (messageEvent: MessageEvent<string>) => {
@@ -42,14 +44,91 @@ export default class Peer {
     else if (type === "disconnect") this._disconnectHandler(message);
     else if (type === "validatePeerName") this.acquaintanceAccept(message);
     else if (type === "acceptPeerName") this.acceptNewConnectionName(message);
+    else if (type === "introduceOffer") this._introduceOffer(message);
+    else if (type === "introduceAnswer") this._introduceAnswer(message);
 
     if (!(~this._handlingTypes.indexOf(type))) return;
     this._messageListeners.get(type)(message);
   }
 
   private _newConnectionHandler(message: Message) {
-    
+    const intro = (message.data as NewConnection);
+    const newComerName = intro.newConnectName;
+    const introducing = message.senderName;
+
+    // Проверяем, знакомы ли мы
+    let isIntroduct = false;
+    for (let i = 0; i < this._connections.length; i ++) {
+      if (this._connections[i].name === newComerName) isIntroduct = true;
+    }
+    if (isIntroduct) {
+      // Уже знакомы. Надо познакомить с теми, кто не знаком. Но только первого
+      for (let i = 0; i < this._connections.length; i++) {
+        if (!(~intro.knowledgeable.indexOf(this._connections[i].name))) {
+          intro.knowledgeable.push(this._peerName);
+          this.typeSendMessage(this._connections[i].name, {
+            senderName: this._peerName,
+            type: "newConnection",
+            data: intro,
+          });
+          break;
+        }
+      }
+    }
+    else {
+      // Не знакомы. Надо бы познакомится
+      this._lastRoom = new Host(this._iceServers);
+      this._lastRoom.createRoom().then(() => {
+        this.typeSendMessage(introducing, {
+          senderName: this._peerName,
+          type: "introduceOffer",
+          data: JSON.stringify(this._lastRoom.localDescription),
+          newComer: newComerName
+        });
+      });
+      
+    }
   }
+
+  private _introduceOffer(message: Message) {
+    if (message.newComer)
+      // Я знакомлю
+      this.typeSendMessage(message.newComer, {
+        senderName: this._peerName,
+        data: message.data,
+        type: "introduceOffer",
+        lead: message.senderName
+      });
+    else { 
+      // Я тот кого привели
+      this.connectToRoom(JSON.parse(message.data as string)).then(localDescription => {
+        this.typeSendMessage(message.senderName, {
+          senderName: this._peerName,
+          type: "introduceAnswer",
+          data: JSON.stringify(localDescription),
+          lead: message.lead
+        });
+      });
+    }
+  }
+
+  private _introduceAnswer(message: Message) {
+    if (message.lead) {
+      // я знакомлю
+      this.typeSendMessage(message.lead, {
+        senderName: this._peerName,
+        type: "introduceAnswer",
+        data: message.data,
+        
+      })
+
+    }
+    else {
+      // Я одбряю подключение
+      this.acceptRoom(JSON.parse(message.data as string));
+    }
+  }
+
   private _disconnectHandler(message: Message) {}
 
   private acquaintanceAccept(message: Message) {
@@ -65,7 +144,8 @@ export default class Peer {
     connect.sendMessage(JSON.stringify(message));
   }
 
-  private acceptNewConnectionName(message: Message) {
+  private acceptNewConnectionName = (message: Message) => {
+    console.log(this._lastRoom);
     if (this._connections.length){
       const firstConnection = this._connections[0].name;
       this.typeSendMessage(firstConnection, {
@@ -163,7 +243,10 @@ export default class Peer {
   public addListenerDefaultMessageType(type: DefaultMessageTypes, listener: (message: Message)=> void) {
     this.addListenerMessageType(type, listener);
   }
-
+ 
+  public get isConnect() : boolean {
+    return this._connectStatus;
+  }
   
 
 }
