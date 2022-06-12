@@ -26,6 +26,7 @@ export default class Peer {
   private _handlingTypes: string[];
   private _lastRoom: Host;
   private _connectStatus: boolean;
+  private _onConnect = () => {};
 
   constructor (private _peerName: string, private _iceServers: RTCIceServer[]) {
     this._lastRoom = null;
@@ -37,6 +38,8 @@ export default class Peer {
   }
 
   private _mainMessageHandler = (messageEvent: MessageEvent<string>) => {
+    console.log("mainMessageHandler");
+    
     const message = JSON.parse(messageEvent.data) as Message;
     const type = message.type;
 
@@ -51,6 +54,12 @@ export default class Peer {
     this._messageListeners.get(type)(message);
   }
 
+  /**
+   * Обработка сообщения о новом подключении. 
+   * Если обрабатывающий пир знаком с новым коннектом, то запрос передается далее. 
+   * Если же подключение не знакомо, осведомитель знакомит новичка и оповещаемого. После чего запрос передается далее
+   * @param message Информация о новом подключении. В сообщении содержит имена всех знающих новичка и имя самого новичка
+   */
   private _newConnectionHandler(message: Message) {
     const intro = (message.data as NewConnection);
     const newComerName = intro.newConnectName;
@@ -90,6 +99,11 @@ export default class Peer {
     }
   }
 
+  /**
+   * Обрабатывает знакомящий, от которого перенаправляется к новичку, и самим новичком. 
+   * @param message В обоих случаях содержитв поле "data" offer - для подключения к новому человеку. 
+   * В случае если приходит к знакомящему, содержит в себе аттрибут "newComer". В ином - lead undefined
+   */
   private _introduceOffer(message: Message) {
     if (message.newComer)
       // Я знакомлю
@@ -112,6 +126,10 @@ export default class Peer {
     }
   }
 
+  /**
+   * Обрабатывает знакомящий, от которого перенаправляется к бывалому.
+   * @param message Отправляется новичком, в "data" содежрит answer, нужный для завершения подключения между пирами. От знакомящего приходит без "lead".
+   */
   private _introduceAnswer(message: Message) {
     if (message.lead) {
       // я знакомлю
@@ -119,7 +137,6 @@ export default class Peer {
         senderName: this._peerName,
         type: "introduceAnswer",
         data: message.data,
-        
       })
 
     }
@@ -131,11 +148,28 @@ export default class Peer {
 
   private _disconnectHandler(message: Message) {}
 
+  /**
+   * Заканчиваем знакомство 1 на 1. сообщяем в ответ свое имя, и запоминаем об этом человеке
+   * @param message 
+   */
   private acquaintanceAccept(message: Message) {
-    this._connections[0].name = message.senderName;
+    // this._connections[0].name = message.senderName;
+    for (const connect of this._connections) {
+      if (!connect.name) {
+        connect.name = message.senderName;
+        break;
+      }
+    }
     this.sendMessage(message.senderName, "accept", "acceptPeerName");
   }
+
+  /**
+   * Знакомимся с новым человеком 1 на 1. Говорим свое имя.
+   * @param connect Подключение с которым есть соединение
+   */
   private acquaintance(connect: Connection) {
+    console.log(connect.chReadyState, "READY STATE CHANGE");
+    
     const message:Message = {
       senderName: this._peerName,
       type:       "validatePeerName",
@@ -144,8 +178,11 @@ export default class Peer {
     connect.sendMessage(JSON.stringify(message));
   }
 
+  /**
+   * Завершение знакомства между 2 пирами
+   * @param message Просто общаются, обмениваясь своими контактами
+   */
   private acceptNewConnectionName = (message: Message) => {
-    console.log(this._lastRoom);
     if (this._connections.length){
       const firstConnection = this._connections[0].name;
       this.typeSendMessage(firstConnection, {
@@ -159,16 +196,21 @@ export default class Peer {
     }
     this._lastRoom.name = message.senderName;
     this._connections.push(this._lastRoom);
+    this._onConnect();
     this._lastRoom = null;
   }
 
   /**
    * New connection. Connect to existing peer
+   * @param offer Offer, where connect
+   * @param onConnect will be called upon connection
+   * @returns local description
    */
-  public async connectToRoom (remoteDescription: RTCSessionDescriptionInit) {
+  public async connectToRoom (offer: RTCSessionDescriptionInit, onConnect: () => void = () =>{}) {
     const connection = new Sub(this._iceServers);
-    await connection.connect(remoteDescription);
-    connection.onDataChannel = () =>{connection.onMessage = this._mainMessageHandler}
+    await connection.connect(offer);
+    connection.onDataChannel = () =>{connection.onMessage = this._mainMessageHandler; onConnect(); console.log(connection.chReadyState);
+    }
     this._connections.push(connection);
     return connection.localDescription;
   }
@@ -186,11 +228,17 @@ export default class Peer {
    * Accept remote peer and init him 
    * @param remoteDescription Remote description
    */
-  public async acceptRoom(remoteDescription: RTCSessionDescriptionInit) {
+  public async acceptRoom(remoteDescription: RTCSessionDescriptionInit, acceptCallback: () => void = () =>{}) {
     if (!this._lastRoom) throw "Connect is no created";
     await this._lastRoom.acceptPeer(remoteDescription);
-    this._lastRoom.onMessage = this._mainMessageHandler;
-    setTimeout(() => this.acquaintance(this._lastRoom), 1000);
+    
+    this._lastRoom.readyStateChange().then((state) => {
+      this._lastRoom.onMessage = this._mainMessageHandler;
+      this.acquaintance(this._lastRoom);
+      acceptCallback();
+    });
+    
+    // setTimeout(() => , 1000);
   };
 
   /**
@@ -243,10 +291,39 @@ export default class Peer {
   public addListenerDefaultMessageType(type: DefaultMessageTypes, listener: (message: Message)=> void) {
     this.addListenerMessageType(type, listener);
   }
- 
+
+  /**
+   * Checking for existence
+   * @param peerName 
+   * @returns true, if peer with this name already exist, false otherwise
+   */
+  public peerNameExist(peerName: string) {
+    for (const connection of this._connections) {
+      if (connection.name === peerName) return true;
+    }
+    return false;
+  }
   public get isConnect() : boolean {
     return this._connectStatus;
   }
-  
+
+  public set onConnect(v: () => void) {
+    this._onConnect = v;
+  }
+
+  public get name () {
+    return this._peerName;
+  }
+
+  public get releasedConnect() {
+    return new Promise<void>(resolve => {
+      const int = setInterval(() => {
+        if (!this._lastRoom) {
+          clearInterval(int);
+          resolve();
+        }
+      }, 50)
+    })
+  }
 
 }

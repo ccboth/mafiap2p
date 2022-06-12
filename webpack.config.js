@@ -1,6 +1,7 @@
 const path = require("path");
 module.exports = {
 	entry: "./src/index.ts",
+	
 	module: {
 		rules: [
 			{
@@ -12,6 +13,19 @@ module.exports = {
 	},
 	resolve: {
 		extensions: [".ts", ".tsx", ".js"],
+		// fallback: {
+		// 	util: false,
+		// 	https: false,
+		// 	http: false,
+		// 	url: false,
+		// 	buffer: false,
+		// 	crypto: false,
+		// 	stream: false,
+		// 	zlib: false,
+		// 	fs: false,
+		// 	os: false,
+		// 	path: false
+		// },
 	},
 	output: {
 		filename: "index.js",

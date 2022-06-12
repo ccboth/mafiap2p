@@ -13,4 +13,8 @@ export default class Sub extends Connection {
     await this._peerConnection.setLocalDescription(answer);
     return (await promiseLocalDescription);
   }
+
+  public set onDataChannel(v: (event:RTCDataChannelEvent) => void) {
+    this._onDataChannel = v;
+  }
 }

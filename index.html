@@ -6,15 +6,47 @@
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 		<title>MafiaP2P</title>
 		<link rel="stylesheet" href="style.css">
+		<template id="BotToken"></template>
+		<template id="chatId"></template>
 		<script src="dist/index.js"></script>
 	</head>
 	<body>
-		<div class="buttons">
-			<button id="create">create new conection</button>
-			<button id="connect">connect to connection</button>
-			<br>
-			<button id="send">sendMEssaeg
-			</button>
+		<div class="chat">
+			<h3>Чат</h3>
+			<div class="messageList">
+				<div class="message">
+					<p class="messageSender">Vasya</p>
+					<p class="messageText">This is fake</p>
+				</div>
+			</div>
+			<div class="sendBar">
+				<textarea name="message" id="textMyMessage" placeholder="enter your message"></textarea>
+				<button id="sendMessage">send</button>
+			</div>
+			
+		</div>
+		<div class="members">
+			<h3>Участники</h3>
+			<div class="memberList">
+				<div class="member">
+					<p class="pMember">Vasya</p>
+				</div>
+			</div>
+		</div>
+		</div>
+		<div class="popupLogin">
+			
+			<div class="popupContent">
+				<input type="text" placeholder="Введите название комнаты" id="roomName">
+				<div class="enter">
+					<div class="connect" id="connect">
+						<p>Подключится</p>
+					</div>
+					<div class="create" id="create">
+						<p>Создать</p>
+					</div>
+				</div>
+			</div>
 		</div>
 	</body>
 </html>

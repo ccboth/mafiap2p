@@ -1,10 +1,10 @@
 
 export default class Connection {
-  protected _peerConnection: RTCPeerConnection;
-	protected _localDescription: RTCSessionDescription;
-	protected _channel: RTCDataChannel;
-  private   _name: string;
-  private   _onDataChannel = function(event:RTCDataChannelEvent) {}
+  protected   _peerConnection: RTCPeerConnection;
+	protected   _localDescription: RTCSessionDescription;
+	protected   _channel: RTCDataChannel;
+  private     _name: string;
+  protected   _onDataChannel = function(event:RTCDataChannelEvent) {}
 
 	constructor(iceServers: RTCIceServer[]) {
 		this._peerConnection = new RTCPeerConnection({ iceServers: iceServers });
@@ -43,18 +43,17 @@ export default class Connection {
     this._channel.send(message);
   }
 
-  public set onMessage(v : (ev: MessageEvent<any>) => void) {
-    if (this._channel)
-      this._channel.onmessage = v;
+  public set onMessage(messageCallback : (ev: MessageEvent<any>) => void) {  
+    console.log("OnMEssage");
+      
+    this._channel.onmessage = messageCallback;
   }
 
   public set name(v: string) {
     if (v) this._name = v; 
   }
 
-  public set onDataChannel(v: (event:RTCDataChannelEvent) => void) {
-    this._onDataChannel = v;
-  }
+
 
   public get name() {
     return this._name;
@@ -63,5 +62,9 @@ export default class Connection {
   public get localDescription() {
 		return this._localDescription;
 	}
+
+  public get chReadyState() {
+    return this._channel.readyState;
+  }
   
 }
