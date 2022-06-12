@@ -1,5 +1,3 @@
-import { strictEqual } from "assert";
-import { resolve } from "url";
 
 interface Update {
   update_id: number;

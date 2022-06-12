@@ -1,9 +1,5 @@
-// import Host from "./host";
-// import Sub from "./sub";
-import { AnswerList } from "telebot";
 import Bot from "./botapi";
 import Peer from "./peer";
-// import Connection from "./connection";
 
 function sleep(miliseconds: number) {
 	return new Promise<void>(resolve => {
@@ -132,7 +128,7 @@ async function main() {
 			await sleep(1000);
 			
 			const pinMessageValueUpd = JSON.parse((await bot.getPinnedMessage(chatId)).text) as PinMessageValue;
-			
+
 			// Зачем че то делать если все одинаково
 			if (JSON.stringify(pinMessageValue) === JSON.stringify(pinMessageValueUpd)) continue;
 			
